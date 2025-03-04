@@ -10,7 +10,7 @@ import { PedidosDto } from './dto/pedidoDto';
 import { UsuarioService } from 'src/usuario/usuario.service';
 import { PedidoService } from 'src/pedido/pedido.service';
 import { DetallePedidoService } from 'src/detalle_pedido/detalle_pedido.service';
-import puppeteer from 'puppeteer';
+import * as PDFDocument from 'pdfkit';
 import { EditPedidoDto } from './dto/editPedidoDto';
 
 @Injectable()
@@ -280,182 +280,113 @@ export class StoreService {
     return datos;
   }
 
-  async boletas(token: string, id: string): Promise<Buffer | null> {
+  async generarBoletaPdf(token: string, id: string): Promise<Buffer> {
+    // Validar token
     const dato = await this.validarToken(token);
     if (!dato.id || !dato.email || !dato.rol) {
-      throw new Error('Error de token');
+      throw new Error('Error de autenticación');
     }
 
+    // Obtener pedido
     const pedido = await this.pedidoService.pedidoForId(id);
     if (!pedido) {
       throw new Error('No hay pedido');
     }
 
+    // Obtener detalles del pedido
     const detalle = await this.detalleService.buscarDetalleForIdPedido(
       pedido.idpedido,
       1,
       250000,
     );
 
-    const browser = await puppeteer.launch({
-      executablePath:
-        process.env.PUPPETEER_EXECUTABLE_PATH ||
-        '/opt/render/.cache/puppeteer/chrome-headless-shell/linux-133.0.6943.141/chrome-headless-shell',
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--headless=new',
-      ],
-      headless: true,
+    // Crear documento PDF
+    const doc = new PDFDocument({
+      size: [227, 600], // Tamaño de ticket térmico
+      margins: {
+        top: 20,
+        bottom: 20,
+        left: 20,
+        right: 20,
+      },
     });
 
-    const deta = detalle
-      ?.map((de) => {
-        let monto = de.cantidad * de.precio;
-        return ` <tr>
-                      <td>${de.producto.nombre}</td>
-                      <td>${de.cantidad}</td>
-                      <td class="text-right">S/ ${monto}.00</td>
-                  </tr>
-              `;
-      })
-      .join('');
+    // Buffer para almacenar el PDF
+    const buffers = [];
+    doc.on('data', buffers.push.bind(buffers));
+    doc.on('end', () => {});
 
-    try {
-      const page = await browser.newPage();
-      const htmlContent = `
-      <html lang="es">
-      <head>
-          <meta charset="UTF-8">
-          <title>Boleta de Venta</title>
-          <style>
-              body {
-                  font-family: 'Courier New', monospace;
-                  max-width: 300px;
-                  margin: 20px auto;
-                  padding: 15px;
-                  border: 3px solid aqua;
-                  background-color: black;
-                  color: white;
-              }
+    // Estilo de fuente
+    doc.font('Courier').fontSize(10).fillColor('black');
 
-              .header {
-                  text-align: center;
-                  border-bottom: 2px dashed #000;
-                  padding-bottom: 10px;
-                  margin-bottom: 15px;
-              }
+    // Encabezado
+    doc.text('Vogue Space', { align: 'center', underline: true });
+    doc.text('RUC: 12345678901', { align: 'center' });
+    doc.text('Av. Universitaria 6257 - Lima', { align: 'center' });
+    doc.text('Tel: 987 654 321', { align: 'center' });
+    doc.moveDown();
 
-              .company-name {
-                  font-size: 20px;
-                  font-weight: bold;
-                  margin-bottom: 5px;
-              }
+    // Información del pedido
+    doc.text(`Fecha: ${pedido.fecha}`, { continued: true });
+    doc.text(`Boleta: ${pedido.idpedido}`, { align: 'right' });
+    doc.text(`Cliente: ${pedido.usuario.nombre} ${pedido.usuario.apellido}`);
+    doc.text(`ID: ${pedido.usuario.idusuario}`);
+    doc.moveDown();
 
-              .details {
-                  margin-bottom: 15px;
-              }
+    // Encabezado de tabla
+    doc
+      .font('Courier-Bold')
+      .text('Descripción', { continued: true })
+      .text('Cant.', { continued: true, align: 'right' })
+      .text('Total', { align: 'right' });
+    doc.font('Courier');
+    doc.moveDown();
 
-              .items-table {
-                  width: 100%;
-                  margin: 15px 0;
-                  border-collapse: collapse;
-              }
+    // Detalles de productos
+    detalle?.forEach((de) => {
+      const monto = de.cantidad * de.precio;
+      doc
+        .text(de.producto.nombre, { continued: true })
+        .text(`${de.cantidad}`, { continued: true, align: 'right' })
+        .text(`S/ ${monto}.00`, { align: 'right' });
+    });
 
-              .items-table th {
-                  border-bottom: 1px solid #000;
-                  padding: 5px 0;
-              }
+    doc.moveDown();
 
-              .items-table td {
-                  padding: 5px 0;
-                  border-bottom: 1px solid #eee;
-              }
+    // Totales
+    doc
+      .text('SUBTOTAL:', { continued: true })
+      .text(`S/ ${pedido.subtotal}.00`, { align: 'right' });
+    doc
+      .text('DESC.:', { continued: true })
+      .text(`-S/ ${pedido.descuento}.00`, { align: 'right' });
+    doc
+      .text('IGV:', { continued: true })
+      .text(`+S/ ${pedido.igv}.00`, { align: 'right' });
 
-              .total {
-                  text-align: right;
-                  font-weight: bold;
-                  margin-top: 15px;
-              }
+    doc
+      .font('Courier-Bold')
+      .text('TOTAL:', { continued: true })
+      .text(`S/ ${pedido.total}.00`, { align: 'right' });
 
-              .impo {
-                  text-align: right;
-                  margin-top: 15px;
-              }
+    // Pie de página
+    doc
+      .font('Courier')
+      .moveDown(2)
+      .text('¡Gracias por su compra!', { align: 'center' })
+      .text('Conserve esta boleta', { align: 'center' });
 
-              .footer {
-                  margin-top: 20px;
-                  font-size: 12px;
-                  text-align: center;
-                  border-top: 2px dashed #000;
-                  padding-top: 10px;
-              }
+    // Finalizar documento
+    doc.end();
 
-              .text-right {
-                  text-align: right;
-              }
-          </style>
-      </head>
-      <body>
-          <div class="header">
-              <div class="company-name">Vogue Space</div>
-              <div>RUC: 12345678901</div>
-              <div>Av. Universitaria 6257 - Lima</div>
-              <div>Tel: 987 654 321</div>
-          </div>
-
-          <div class="details">
-              <div style="display: flex; justify-content: space-between;">
-                  <div>Fecha: <p>${pedido.fecha}</p></div>
-                  <div>Boleta: <p>${pedido.idpedido}</p></div>
-              </div>
-              <div>Cliente: ${pedido.usuario.nombre} ${pedido.usuario.apellido}</div>
-              <div>ID: ${pedido.usuario.idusuario}</div>
-          </div>
-
-          <table class="items-table">
-              <thead>
-                  <tr>
-                      <th>Descripción</th>
-                      <th>Cant.</th>
-                      <th>Total</th>
-                  </tr>
-              </thead>
-              <tbody>
-                ${deta}
-              </tbody>
-          </table>
-
-          <div class="impo">SUBTOTAL: S/ ${pedido.subtotal}.00</div>
-          <div class="impo">DESC.: -S/ ${pedido.descuento}.00</div>
-          <div class="impo">IGV: +S/ ${pedido.igv}.00</div>
-          <div class="total">
-              TOTAL: S/ ${pedido.total}.00
-          </div>
-
-          <div class="footer">
-              ¡Gracias por su compra!<br>
-              Conserve esta boleta
-          </div>
-      </body>
-      </html>
-    `;
-
-      await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
-      const pdfBuffer = await page.pdf({
-        format: 'A4',
-        width: '80mm',
-        printBackground: true,
+    // Convertir a Buffer
+    return new Promise((resolve, reject) => {
+      doc.on('end', () => {
+        const pdfBuffer = Buffer.concat(buffers);
+        resolve(pdfBuffer);
       });
-
-      await browser.close();
-      return Buffer.from(pdfBuffer);
-    } catch (error) {
-      console.error('Error al generar el PDF con Puppeteer:', error);
-      await browser.close();
-      return null;
-    }
+      doc.on('error', reject);
+    });
   }
 
   async todosCate(busca: string, page: number, limit: number, token: string) {
@@ -531,7 +462,7 @@ export class StoreService {
     };
   }
 
-  async editPedidos(token: string, editpedi: EditPedidoDto, id:string){
+  async editPedidos(token: string, editpedi: EditPedidoDto, id: string) {
     const dato = await this.validarToken(token);
     if (dato.id == null && dato.email == null && dato.rol == null) {
       return {
@@ -540,10 +471,10 @@ export class StoreService {
     }
 
     const iduser = await this.usuarioServices.findByEmail(editpedi.usuario);
-  
-    const nuevo = {...editpedi, usuario: iduser?.idusuario};
 
-    const datos = await this.pedidoService.editPedidos(id,nuevo);
+    const nuevo = { ...editpedi, usuario: iduser?.idusuario };
+
+    const datos = await this.pedidoService.editPedidos(id, nuevo);
 
     return datos;
   }

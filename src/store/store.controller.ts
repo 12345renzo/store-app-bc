@@ -119,21 +119,26 @@ export class StoreController {
     @Res() res: Response,
   ) {
     try {
-      const pdfBuffer = await this.storeServi.boletas(token, id);
+      // Generar PDF
+      const pdfBuffer = await this.storeServi.generarBoletaPdf(
+        token,
+        id,
+      );
 
-      if (!pdfBuffer) {
-        return res.status(400).json({ message: 'Error al generar el PDF' });
-      }
-
+      // Configurar respuesta
       res.set({
         'Content-Type': 'application/pdf',
-        'Content-Disposition': 'attachment; filename="boleta.pdf"',
+        'Content-Disposition': 'attachment; filename=boleta.pdf',
       });
 
+      // Enviar PDF
       res.status(200).send(pdfBuffer);
     } catch (error) {
       console.error('Error al generar el PDF:', error);
-      return res.status(500).json({ message: 'Error interno del servidor' });
+      return res.status(500).json({
+        message: 'Error interno del servidor',
+        error: error.message,
+      });
     }
   }
 
