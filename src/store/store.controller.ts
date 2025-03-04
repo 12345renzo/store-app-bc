@@ -127,7 +127,7 @@ export class StoreController {
 
       res.set({
         'Content-Type': 'application/pdf',
-        'Content-Disposition': 'inline; filename="boleta.pdf"',
+        'Content-Disposition': 'attachment; filename="boleta.pdf"',
       });
 
       res.status(200).send(pdfBuffer);
@@ -181,6 +181,6 @@ export class StoreController {
     @Headers('x-token') token: string,
     @Body() edit: EditPedidoDto,
   ) {
-    return await this.storeServi.editPedidos(token,edit,id);
+    return await this.storeServi.editPedidos(token, edit, id);
   }
 }
