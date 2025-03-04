@@ -294,11 +294,18 @@ export class StoreService {
     const detalle = await this.detalleService.buscarDetalleForIdPedido(
       pedido.idpedido,
       1,
-      25,
+      250000,
     );
 
     const browser = await puppeteer.launch({
-      args: ['--no-sandbox', '--disable-setuid-sandbox'], // Evita problemas de permisos
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--single-process',
+      ],
+      headless: 'shell',
     });
 
     const deta = detalle
