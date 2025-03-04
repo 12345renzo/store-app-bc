@@ -302,7 +302,7 @@ export class StoreService {
 
     // Crear documento PDF
     const doc = new PDFDocument({
-      size: [350, 600], // Tamaño de ticket térmico
+      size: [325, 600], // Tamaño de ticket térmico
       margins: {
         top: 20,
         bottom: 20,
@@ -348,7 +348,7 @@ export class StoreService {
       doc
         .text(de.producto.nombre, { continued: true })
         .text(`${de.cantidad}`, { continued: true, align: 'right' })
-        .text(`S/ ${monto}.00`, { align: 'right' });
+        .text(`S/ ${monto}`, { align: 'right' });
     });
 
     doc.moveDown();
@@ -356,18 +356,18 @@ export class StoreService {
     // Totales
     doc
       .text('SUBTOTAL:', { continued: true })
-      .text(`S/ ${pedido.subtotal}.00`, { align: 'right' });
+      .text(`S/ ${pedido.subtotal}`, { align: 'right' });
     doc
       .text('DESC.:', { continued: true })
-      .text(`-S/ ${pedido.descuento}.00`, { align: 'right' });
+      .text(`-S/ ${pedido.descuento}`, { align: 'right' });
     doc
       .text('IGV:', { continued: true })
-      .text(`+S/ ${pedido.igv}.00`, { align: 'right' });
+      .text(`+S/ ${pedido.igv}`, { align: 'right' });
 
     doc
       .font('Courier-Bold')
       .text('TOTAL:', { continued: true })
-      .text(`S/ ${pedido.total}.00`, { align: 'right' });
+      .text(`S/ ${pedido.total}`, { align: 'right' });
 
     // Pie de página
     doc
