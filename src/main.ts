@@ -5,7 +5,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   // Configuración de CORS
   app.enableCors({
-    origin: 'http://localhost:3000', 
+    origin: 'https://store-app-fr.onrender.com', 
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'x-token'],
   });
