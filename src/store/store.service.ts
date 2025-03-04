@@ -11,8 +11,8 @@ import { UsuarioService } from 'src/usuario/usuario.service';
 import { PedidoService } from 'src/pedido/pedido.service';
 import { DetallePedidoService } from 'src/detalle_pedido/detalle_pedido.service';
 import puppeteer from 'puppeteer-extra';
-import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { EditPedidoDto } from './dto/editPedidoDto';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
 @Injectable()
 export class StoreService {
