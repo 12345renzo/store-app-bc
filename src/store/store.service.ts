@@ -302,7 +302,7 @@ export class StoreService {
 
     // Crear documento PDF
     const doc = new PDFDocument({
-      size: [227, 600], // Tamaño de ticket térmico
+      size: [350, 600], // Tamaño de ticket térmico
       margins: {
         top: 20,
         bottom: 20,
