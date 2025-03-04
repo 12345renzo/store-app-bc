@@ -298,14 +298,16 @@ export class StoreService {
     );
 
     const browser = await puppeteer.launch({
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
+      executablePath:
+        process.env.PUPPETEER_EXECUTABLE_PATH ||
+        '/opt/render/.cache/puppeteer/chrome-headless-shell/linux-133.0.6943.141/chrome-headless-shell',
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--single-process',
+        '--headless=new',
       ],
-      headless: 'shell',
+      headless: true,
     });
 
     const deta = detalle
